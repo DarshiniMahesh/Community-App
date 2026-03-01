@@ -1,5 +1,3 @@
-"use client";
-
 import { Check } from "lucide-react";
 
 export interface Step {
@@ -27,7 +25,6 @@ export function Stepper({ steps, currentStep }: StepperProps) {
               <li key={step.id} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
                   <div className="flex items-center w-full">
-
                     {/* Step Circle */}
                     <div
                       className={`
@@ -44,9 +41,7 @@ export function Stepper({ steps, currentStep }: StepperProps) {
                       {isCompleted ? (
                         <Check className="h-5 w-5" />
                       ) : (
-                        <span className="font-medium">
-                          {index + 1}
-                        </span>
+                        <span className="font-medium">{index + 1}</span>
                       )}
                     </div>
 
