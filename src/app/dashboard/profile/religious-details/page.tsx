@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Stepper } from "../Stepper";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,109 +17,160 @@ import {
 import { ArrowLeft, ArrowRight, Save, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 
-const steps = [
-  { id: "1", name: "Personal", href: "/dashboard/profile/personal-details" },
-  { id: "2", name: "Religious", href: "/dashboard/profile/religious-details" },
-  { id: "3", name: "Family", href: "/dashboard/profile/family-information" },
-  { id: "4", name: "Location", href: "/dashboard/profile/location-information" },
-  { id: "5", name: "Education", href: "/dashboard/profile/education-profession" },
-  { id: "6", name: "Economic", href: "/dashboard/profile/economic-details" },
-  { id: "7", name: "Review", href: "/dashboard/profile/review-submit" },
+// ── Data ──────────────────────────────────────────────────────────
+const religiousHierarchy = [
+  {
+    gotra: "Kashyap",
+    pravaras: [
+      { name: "Kashyap-Avatsara-Naidhruva", upanamas: ["Kaushik", "Kaushalya"] },
+      { name: "Kashyap-Avatsara",           upanamas: ["Naitik", "Vaidik"] },
+      { name: "Kashyap-Daival",             upanamas: ["Daival", "Kashyapiya"] },
+    ],
+  },
+  {
+    gotra: "Bharadwaj",
+    pravaras: [
+      { name: "Angirasa-Barhaspatya-Bharadwaj", upanamas: ["Gargya", "Bharadwaj"] },
+      { name: "Bharadwaj-Gargya",               upanamas: ["Garg", "Gargya"] },
+    ],
+  },
+  {
+    gotra: "Vishwamitra",
+    pravaras: [
+      { name: "Vishwamitra-Devarata-Audala",  upanamas: ["Kaushik", "Madhavi"] },
+      { name: "Vishwamitra-Madhuchhanda",     upanamas: ["Madhuchhanda", "Devarata"] },
+    ],
+  },
+  {
+    gotra: "Jamadagni",
+    pravaras: [
+      { name: "Bhargava-Chyavana-Jamadagni", upanamas: ["Jamadagni", "Apnavan"] },
+      { name: "Jamadagni-Apnavan",           upanamas: ["Bhargava", "Richika"] },
+    ],
+  },
+  {
+    gotra: "Gautam",
+    pravaras: [
+      { name: "Angirasa-Ayasya-Gautam", upanamas: ["Gautam", "Sharadvat"] },
+      { name: "Gautam-Sharadvat",       upanamas: ["Ayasya", "Nodha"] },
+    ],
+  },
+  {
+    gotra: "Atri",
+    pravaras: [
+      { name: "Atreya-Archanas-Syavasva", upanamas: ["Atreya", "Archanas", "Mudgala"] },
+    ],
+  },
+  {
+    gotra: "Vashishtha",
+    pravaras: [
+      { name: "Vashishtha-Maitravaruna-Koundilya", upanamas: ["Vashishtha", "Parashara", "Shakti"] },
+    ],
+  },
 ];
 
-// Mock hierarchical data
-const gotras = ["Kashyap", "Bharadwaj", "Vishwamitra", "Jamadagni", "Gautam"];
-const pravaraByGotra: Record<string, string[]> = {
-  Kashyap: ["Kashyap-Avatsara-Naidhruva", "Kashyap-Avatsara", "Kashyap-Daival"],
-  Bharadwaj: ["Angirasa-Barhaspatya-Bharadwaj", "Bharadwaj-Gargya"],
-  Vishwamitra: ["Vishwamitra-Devarata-Audala", "Vishwamitra-Madhuchhanda"],
-  Jamadagni: ["Bhargava-Chyavana-Jamadagni", "Jamadagni-Apnavan"],
-  Gautam: ["Angirasa-Ayasya-Gautam", "Gautam-Sharadvat"],
-};
+const kuladevatas = [
+  "Kalika Devi",
+  "Mahalaxmi",
+  "Renuka Devi",
+  "Tulja Bhavani",
+  "Durga Devi",
+  "Bhavani Mata",
+  "Chamunda Devi",
+  "Bhadrakali",
+  "Lakshmi Devi",
+  "Saraswati Devi",
+  "Amba Devi",
+  "Khandoba",
+  "Venkateshwara",
+  "Lakshmi Narayana",
+  "Balaji",
+  "Mahadev",
+];
 
-const upanamaByPravara: Record<string, string[]> = {
-  "Kashyap-Avatsara-Naidhruva": ["Kaushik", "Kaushalya"],
-  "Kashyap-Avatsara": ["Naitik", "Vaidik"],
-  "Angirasa-Barhaspatya-Bharadwaj": ["Gargya", "Bharadwaj"],
-  "Vishwamitra-Devarata-Audala": ["Kaushik", "Madhavi"],
-  "Bhargava-Chyavana-Jamadagni": ["Jamadagni", "Apnavan"],
-};
+// ── Types ──────────────────────────────────────────────────────────
+type Pravara = { name: string; upanamas: string[] };
 
-const kuladevataByUpanama: Record<string, string> = {
-  Kaushik: "Kalika Devi",
-  Kaushalya: "Mahalaxmi",
-  Gargya: "Renuka Devi",
-  Bharadwaj: "Tulja Bhavani",
-  Naitik: "Bhavani Mata",
-};
+const steps = [
+  { id: "1", name: "Personal",  href: "/dashboard/profile/personal-details" },
+  { id: "2", name: "Religious", href: "/dashboard/profile/religious-details" },
+  { id: "3", name: "Family",    href: "/dashboard/profile/family-information" },
+  { id: "4", name: "Location",  href: "/dashboard/profile/location-information" },
+  { id: "5", name: "Education", href: "/dashboard/profile/education-profession" },
+  { id: "6", name: "Economic",  href: "/dashboard/profile/economic-details" },
+  { id: "7", name: "Review",    href: "/dashboard/profile/review-submit" },
+];
 
 export default function Page() {
   const router = useRouter();
+
   const [formData, setFormData] = useState({
     gotra: "",
     pravara: "",
     upanama: "",
     kuladevata: "",
+    kuladevataOther: "",   // "Other" free-text
     surnameInUse: "",
     surnameAsPerGotra: "",
     priestName: "",
     priestLocation: "",
   });
 
-  const [availablePravara, setAvailablePravara] = useState<string[]>([]);
-  const [availableUpanama, setAvailableUpanama] = useState<string[]>([]);
+  const [pravaraOptions, setPravaraOptions] = useState<Pravara[]>([]);
+  const [upanamaOptions, setUpanamaOptions] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (formData.gotra) {
-      setAvailablePravara(pravaraByGotra[formData.gotra] || []);
-      setFormData((prev) => ({ ...prev, pravara: "", upanama: "", kuladevata: "" }));
-    }
-  }, [formData.gotra]);
+  // ── Handlers ──────────────────────────────────────────────────────
+  const handleGotraChange = (value: string) => {
+    const gotraData = religiousHierarchy.find((g) => g.gotra === value);
+    setFormData((prev) => ({ ...prev, gotra: value, pravara: "", upanama: "", kuladevata: "", kuladevataOther: "" }));
+    setPravaraOptions(gotraData?.pravaras || []);
+    setUpanamaOptions([]);
+    setErrors((e) => ({ ...e, gotra: "" }));
+  };
 
-  useEffect(() => {
-    if (formData.pravara) {
-      setAvailableUpanama(upanamaByPravara[formData.pravara] || []);
-      setFormData((prev) => ({ ...prev, upanama: "", kuladevata: "" }));
-    }
-  }, [formData.pravara]);
+  const handlePravaraChange = (value: string) => {
+    const pravaraData = pravaraOptions.find((p) => p.name === value);
+    setFormData((prev) => ({ ...prev, pravara: value, upanama: "", kuladevata: "", kuladevataOther: "" }));
+    setUpanamaOptions(pravaraData?.upanamas || []);
+    setErrors((e) => ({ ...e, pravara: "" }));
+  };
 
-  useEffect(() => {
-    if (formData.upanama) {
-      const kuladevata = kuladevataByUpanama[formData.upanama] || "";
-      setFormData((prev) => ({ ...prev, kuladevata }));
-    }
-  }, [formData.upanama]);
+  const handleUpanamaChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, upanama: value, kuladevata: "", kuladevataOther: "" }));
+    setErrors((e) => ({ ...e, upanama: "" }));
+  };
 
-  const validateForm = () => {
+  const handleKuladevataChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, kuladevata: value, kuladevataOther: "" }));
+    setErrors((e) => ({ ...e, kuladevata: "" }));
+  };
+
+  // ── Validation ────────────────────────────────────────────────────
+  const validate = () => {
     const newErrors: Record<string, string> = {};
-
-    if (!formData.gotra) newErrors.gotra = "Please select Gotra";
+    if (!formData.gotra)   newErrors.gotra   = "Please select Gotra";
     if (!formData.pravara) newErrors.pravara = "Please select Pravara";
     if (!formData.upanama) newErrors.upanama = "Please select Upanama";
+    if (!formData.kuladevata) newErrors.kuladevata = "Please select Kuladevata";
+    if (formData.kuladevata === "Other" && !formData.kuladevataOther.trim())
+      newErrors.kuladevataOther = "Please enter your Kuladevata";
     if (!formData.surnameInUse.trim()) newErrors.surnameInUse = "Surname in use is required";
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSaveDraft = () => {
-    toast.success("Draft saved successfully!");
-  };
+  const handleSaveDraft = () => toast.success("Draft saved successfully!");
 
   const handleNext = () => {
-    if (validateForm()) {
+    if (validate()) {
       toast.success("Religious details saved!");
       router.push("/dashboard/profile/family-information");
     }
   };
 
-  const handleBack = () => {
-    router.push("/dashboard/profile/personal-details");
-  };
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-10">
       {/* Header */}
       <div>
         <Button
@@ -139,7 +190,7 @@ export default function Page() {
       {/* Stepper */}
       <Stepper steps={steps} currentStep={1} />
 
-      {/* Hierarchical Selection */}
+      {/* ── Hierarchical Selection ── */}
       <Card className="shadow-sm border-l-4 border-l-primary">
         <CardHeader>
           <CardTitle>Religious Lineage (Hierarchical)</CardTitle>
@@ -147,135 +198,127 @@ export default function Page() {
             Select your Gotra, Pravara, and Upanama. The options will filter based on your selections.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {/* Visual Flow Indicator */}
-            <div className="flex items-center justify-center gap-4 p-4 bg-secondary/50 rounded-lg">
-              <div className="text-center">
-                <div className="text-sm font-medium text-secondary-foreground">Gotra</div>
-                <div className="text-xs text-muted-foreground mt-1">Select first</div>
-              </div>
-              <ArrowDown className="h-5 w-5 text-primary" />
-              <div className="text-center">
-                <div className="text-sm font-medium text-secondary-foreground">Pravara</div>
-                <div className="text-xs text-muted-foreground mt-1">Filters based on Gotra</div>
-              </div>
-              <ArrowDown className="h-5 w-5 text-primary" />
-              <div className="text-center">
-                <div className="text-sm font-medium text-secondary-foreground">Upanama</div>
-                <div className="text-xs text-muted-foreground mt-1">Filters based on Pravara</div>
-              </div>
-              <ArrowDown className="h-5 w-5 text-primary" />
-              <div className="text-center">
-                <div className="text-sm font-medium text-secondary-foreground">Kuladevata</div>
-                <div className="text-xs text-muted-foreground mt-1">Auto-filled</div>
-              </div>
-            </div>
+        <CardContent className="space-y-6">
 
-            {/* Dropdown Fields */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="gotra">
-                  Gotra <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.gotra}
-                  onValueChange={(value) => {
-                    setFormData({ ...formData, gotra: value });
-                    setErrors({ ...errors, gotra: "" });
-                  }}
-                >
-                  <SelectTrigger className={errors.gotra ? "border-destructive" : ""}>
-                    <SelectValue placeholder="Select Gotra" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {gotras.map((gotra) => (
-                      <SelectItem key={gotra} value={gotra}>
-                        {gotra}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.gotra && <p className="text-xs text-destructive">{errors.gotra}</p>}
+          {/* Flow indicator */}
+          <div className="flex items-center justify-center gap-4 p-4 bg-secondary/50 rounded-lg flex-wrap">
+            {[
+              { label: "Gotra",      sub: formData.gotra      || "Select first" },
+              { label: "Pravara",    sub: formData.pravara    || "Filters based on Gotra" },
+              { label: "Upanama",    sub: formData.upanama    || "Filters based on Pravara" },
+              { label: "Kuladevata", sub: formData.kuladevata === "Other" ? formData.kuladevataOther || "Other" : formData.kuladevata || "Select after Upanama" },
+            ].map((item, i, arr) => (
+              <div key={item.label} className="flex items-center gap-4">
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-primary">{item.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 max-w-[110px] truncate">{item.sub}</p>
+                </div>
+                {i < arr.length - 1 && (
+                  <ArrowDown className="h-4 w-4 text-primary -rotate-90 flex-shrink-0" />
+                )}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="pravara">
-                  Pravara <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.pravara}
-                  onValueChange={(value) => {
-                    setFormData({ ...formData, pravara: value });
-                    setErrors({ ...errors, pravara: "" });
-                  }}
-                  disabled={!formData.gotra}
-                >
-                  <SelectTrigger className={errors.pravara ? "border-destructive" : ""}>
-                    <SelectValue
-                      placeholder={formData.gotra ? "Select Pravara" : "Select Gotra first"}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePravara.map((pravara) => (
-                      <SelectItem key={pravara} value={pravara}>
-                        {pravara}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.pravara && <p className="text-xs text-destructive">{errors.pravara}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="upanama">
-                  Upanama <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.upanama}
-                  onValueChange={(value) => {
-                    setFormData({ ...formData, upanama: value });
-                    setErrors({ ...errors, upanama: "" });
-                  }}
-                  disabled={!formData.pravara}
-                >
-                  <SelectTrigger className={errors.upanama ? "border-destructive" : ""}>
-                    <SelectValue
-                      placeholder={formData.pravara ? "Select Upanama" : "Select Pravara first"}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableUpanama.map((upanama) => (
-                      <SelectItem key={upanama} value={upanama}>
-                        {upanama}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.upanama && <p className="text-xs text-destructive">{errors.upanama}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="kuladevata">Kuladevata (Auto-filled)</Label>
-                <Input
-                  id="kuladevata"
-                  value={formData.kuladevata}
-                  readOnly
-                  placeholder="Will be auto-filled"
-                  className="bg-muted"
-                />
-              </div>
-            </div>
+            ))}
           </div>
+
+          {/* Dropdowns */}
+          <div className="grid md:grid-cols-2 gap-4">
+
+            {/* Gotra */}
+            <div className="space-y-2">
+              <Label>Gotra <span className="text-destructive">*</span></Label>
+              <Select value={formData.gotra} onValueChange={handleGotraChange}>
+                <SelectTrigger className={errors.gotra ? "border-destructive" : ""}>
+                  <SelectValue placeholder="Select Gotra" />
+                </SelectTrigger>
+                <SelectContent>
+                  {religiousHierarchy.map((g) => (
+                    <SelectItem key={g.gotra} value={g.gotra}>{g.gotra}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.gotra && <p className="text-xs text-destructive">{errors.gotra}</p>}
+            </div>
+
+            {/* Pravara */}
+            <div className="space-y-2">
+              <Label>Pravara <span className="text-destructive">*</span></Label>
+              <Select value={formData.pravara} onValueChange={handlePravaraChange} disabled={!formData.gotra}>
+                <SelectTrigger className={errors.pravara ? "border-destructive" : ""}>
+                  <SelectValue placeholder={formData.gotra ? "Select Pravara" : "Select Gotra first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {pravaraOptions.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.pravara && <p className="text-xs text-destructive">{errors.pravara}</p>}
+            </div>
+
+            {/* Upanama */}
+            <div className="space-y-2">
+              <Label>Upanama <span className="text-destructive">*</span></Label>
+              <Select value={formData.upanama} onValueChange={handleUpanamaChange} disabled={!formData.pravara}>
+                <SelectTrigger className={errors.upanama ? "border-destructive" : ""}>
+                  <SelectValue placeholder={formData.pravara ? "Select Upanama" : "Select Pravara first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {upanamaOptions.map((u) => (
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.upanama && <p className="text-xs text-destructive">{errors.upanama}</p>}
+            </div>
+
+            {/* Kuladevata — manual select, enabled after Upanama */}
+            <div className="space-y-2">
+              <Label>Kuladevata <span className="text-destructive">*</span></Label>
+              <Select value={formData.kuladevata} onValueChange={handleKuladevataChange} disabled={!formData.upanama}>
+                <SelectTrigger className={errors.kuladevata ? "border-destructive" : ""}>
+                  <SelectValue placeholder={formData.upanama ? "Select Kuladevata" : "Select Upanama first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {kuladevatas.map((k) => (
+                    <SelectItem key={k} value={k}>{k}</SelectItem>
+                  ))}
+                  <SelectItem value="Other">Other (Not listed)</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.kuladevata && <p className="text-xs text-destructive">{errors.kuladevata}</p>}
+            </div>
+
+          </div>
+
+          {/* Other Kuladevata — shown only if "Other" selected */}
+          {formData.kuladevata === "Other" && (
+            <div className="space-y-2">
+              <Label htmlFor="kuladevataOther">
+                Enter Kuladevata <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="kuladevataOther"
+                placeholder="Type your Kuladevata name"
+                value={formData.kuladevataOther}
+                onChange={(e) => {
+                  setFormData({ ...formData, kuladevataOther: e.target.value });
+                  setErrors({ ...errors, kuladevataOther: "" });
+                }}
+                className={errors.kuladevataOther ? "border-destructive" : ""}
+              />
+              {errors.kuladevataOther && <p className="text-xs text-destructive">{errors.kuladevataOther}</p>}
+            </div>
+          )}
+
         </CardContent>
       </Card>
 
-      {/* Additional Details */}
+      {/* ── Surname & Priest ── */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Surname & Priest Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="surnameInUse">
@@ -291,9 +334,7 @@ export default function Page() {
                 }}
                 className={errors.surnameInUse ? "border-destructive" : ""}
               />
-              {errors.surnameInUse && (
-                <p className="text-xs text-destructive">{errors.surnameInUse}</p>
-              )}
+              {errors.surnameInUse && <p className="text-xs text-destructive">{errors.surnameInUse}</p>}
             </div>
 
             <div className="space-y-2">
@@ -302,9 +343,7 @@ export default function Page() {
                 id="surnameAsPerGotra"
                 placeholder="Traditional surname"
                 value={formData.surnameAsPerGotra}
-                onChange={(e) =>
-                  setFormData({ ...formData, surnameAsPerGotra: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, surnameAsPerGotra: e.target.value })}
               />
             </div>
 
@@ -333,7 +372,7 @@ export default function Page() {
 
       {/* Navigation */}
       <div className="flex justify-between items-center pt-4 border-t border-border">
-        <Button variant="outline" onClick={handleBack} className="gap-2">
+        <Button variant="outline" onClick={() => router.push("/dashboard/profile/personal-details")} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Previous Step
         </Button>

@@ -33,7 +33,7 @@ export default function AuthLayout({
           </div>
           <div>
             <p className="text-white font-bold text-lg leading-tight">Community Portal</p>
-            <p className="text-white/70 text-xs">Sangha Management System</p>
+            <p className="text-white/70 text-xs">Community Management System</p>
           </div>
         </div>
 
@@ -44,7 +44,7 @@ export default function AuthLayout({
               Your Community,<br />Connected.
             </h1>
             <p className="text-white/75 text-base leading-relaxed max-w-xs">
-              A unified platform for Sangha registration, profile management, and community records.
+              A unified platform for Sangha/Association/Temple registration, profile management, and community records.
             </p>
           </div>
 
