@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Stepper } from "../Stepper";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -15,359 +14,343 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, ArrowRight, Save, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, User, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
+// ── Steps ─────────────────────────────────────────────────────────
 const steps = [
-  { id: "1", name: "Personal", href: "/dashboard/profile/personal-details" },
+  { id: "1", name: "Personal",  href: "/dashboard/profile/personal-details" },
   { id: "2", name: "Religious", href: "/dashboard/profile/religious-details" },
-  { id: "3", name: "Family", href: "/dashboard/profile/family-information" },
-  { id: "4", name: "Location", href: "/dashboard/profile/location-information" },
+  { id: "3", name: "Family",    href: "/dashboard/profile/family-information" },
+  { id: "4", name: "Location",  href: "/dashboard/profile/location-information" },
   { id: "5", name: "Education", href: "/dashboard/profile/education-profession" },
-  { id: "6", name: "Economic", href: "/dashboard/profile/economic-details" },
-  { id: "7", name: "Review", href: "/dashboard/profile/review-submit" },
+  { id: "6", name: "Economic",  href: "/dashboard/profile/economic-details" },
+  { id: "7", name: "Review",    href: "/dashboard/profile/review-submit" },
 ];
 
+// ── Data ──────────────────────────────────────────────────────────
 const incomeSlabs = [
-  "Below ₹2 Lakh",
-  "₹2-5 Lakh",
-  "₹5-10 Lakh",
-  "₹10-20 Lakh",
-  "₹20-50 Lakh",
-  "Above ₹50 Lakh",
+  "Below ₹1 Lakh",
+  "₹1 – 2 Lakh",
+  "₹2 – 3 Lakh",
+  "₹3 – 5 Lakh",
+  "₹5 – 10 Lakh",
+  "₹10 – 25 Lakh",
+  "₹25 Lakh+",
 ];
 
 const assets = [
-  "Own House",
-  "Agricultural Land",
-  "Two Wheeler",
-  "Four Wheeler (Car)",
+  "Stay in Rented House",
+  "Own a House",
+  "Own Agricultural Land",
+  "Own a Two Wheeler",
+  "Own a Car (Four Wheeler)",
 ];
 
 const insuranceTypes = ["Health Insurance", "Life Insurance", "Term Insurance"];
-
-const coverageOptions = ["Self", "Spouse", "Kids", "Parents", "All Family"];
 
 const documentTypes = [
   "Aadhaar Card",
   "PAN Card",
   "Ration Card",
-  "Property Records",
+  "All Records in Place (Land / Property / Pension / Govt)",
 ];
 
 const investments = [
-  "Fixed Deposit",
-  "Mutual Fund / SIP",
-  "Shares / Demat Account",
-  "Others",
+  "Fixed Deposits",
+  "Mutual Funds / SIP",
+  "Trading in Shares / Demat Account",
+  "Other Investments",
 ];
 
+// ── Mock family members — replace with real shared state later ────
+const familyMembers = [
+  { id: "self", name: "Self",    relation: "Self" },
+  { id: "m1",   name: "Spouse", relation: "Spouse" },
+  { id: "m2",   name: "Child 1",relation: "Son / Daughter" },
+  { id: "m3",   name: "Father", relation: "Father" },
+  { id: "m4",   name: "Mother", relation: "Mother" },
+];
+
+// ── Types ─────────────────────────────────────────────────────────
+// insurance: { memberId: { "Health Insurance": true/false, ... } }
+type InsuranceState = Record<string, Record<string, boolean>>;
+
+// documents: { "Aadhaar Card": true/false/null }
+type DocumentState = Record<string, boolean | null>;
+
+function initInsurance(): InsuranceState {
+  const state: InsuranceState = {};
+  familyMembers.forEach((m) => {
+    state[m.id] = {};
+    insuranceTypes.forEach((t) => { state[m.id][t] = false; });
+  });
+  return state;
+}
+
+function initDocuments(): DocumentState {
+  const state: DocumentState = {};
+  documentTypes.forEach((d) => { state[d] = null; });
+  return state;
+}
+
+// ── Page ──────────────────────────────────────────────────────────
 export default function Page() {
   const router = useRouter();
 
-  const [formData, setFormData] = useState({
-    selfIncome: "",
-    familyIncome: "",
-  });
-
-  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
+  const [selfIncome,   setSelfIncome]   = useState("");
+  const [familyIncome, setFamilyIncome] = useState("");
+  const [selectedAssets,      setSelectedAssets]      = useState<string[]>([]);
   const [selectedInvestments, setSelectedInvestments] = useState<string[]>([]);
-
-  const [insuranceCoverage, setInsuranceCoverage] = useState<Record<string, string[]>>({
-    "Health Insurance": [],
-    "Life Insurance": [],
-    "Term Insurance": [],
-  });
-
-  const [uploadedDocuments, setUploadedDocuments] = useState<Record<string, File | null>>({
-    "Aadhaar Card": null,
-    "PAN Card": null,
-    "Ration Card": null,
-    "Property Records": null,
-  });
-
+  const [insurance,  setInsurance]  = useState<InsuranceState>(initInsurance());
+  const [documents,  setDocuments]  = useState<DocumentState>(initDocuments());
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const toggleAsset = (asset: string) => {
-    setSelectedAssets((prev) =>
-      prev.includes(asset) ? prev.filter((a) => a !== asset) : [...prev, asset]
-    );
-  };
+  // ── Helpers ───────────────────────────────────────────────────
+  const toggleAsset = (a: string) =>
+    setSelectedAssets((prev) => prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]);
 
-  const toggleInvestment = (investment: string) => {
-    setSelectedInvestments((prev) =>
-      prev.includes(investment)
-        ? prev.filter((i) => i !== investment)
-        : [...prev, investment]
-    );
-  };
+  const toggleInvestment = (i: string) =>
+    setSelectedInvestments((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]);
 
-  const toggleInsuranceCoverage = (insuranceType: string, coverage: string) => {
-    setInsuranceCoverage((prev) => ({
+  const toggleInsurance = (memberId: string, type: string) =>
+    setInsurance((prev) => ({
       ...prev,
-      [insuranceType]: prev[insuranceType].includes(coverage)
-        ? prev[insuranceType].filter((c) => c !== coverage)
-        : [...prev[insuranceType], coverage],
+      [memberId]: { ...prev[memberId], [type]: !prev[memberId][type] },
     }));
-  };
 
-  const handleDocumentUpload = (docType: string, file: File | null) => {
-    setUploadedDocuments((prev) => ({
+  const setDocument = (doc: string, value: boolean) =>
+    setDocuments((prev) => ({
       ...prev,
-      [docType]: file,
+      [doc]: prev[doc] === value ? null : value, // clicking same option deselects
     }));
+
+  // ── Validation ────────────────────────────────────────────────
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!selfIncome)   e.selfIncome   = "Please select your income slab";
+    if (!familyIncome) e.familyIncome = "Please select family income slab";
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.selfIncome) {
-      newErrors.selfIncome = "Please select your income slab";
-    }
-    if (!formData.familyIncome) {
-      newErrors.familyIncome = "Please select family income slab";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSaveDraft = () => {
-    toast.success("Draft saved successfully!");
-  };
+  const handleSaveDraft = () => toast.success("Draft saved successfully!");
 
   const handleNext = () => {
-    if (validateForm()) {
+    if (validate()) {
       toast.success("Economic details saved!");
       router.push("/dashboard/profile/review-submit");
     }
   };
 
-  const handleBack = () => {
-    router.push("/dashboard/profile/education-profession");
-  };
-
+  // ── Render ────────────────────────────────────────────────────
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-10">
+
       {/* Header */}
       <div>
-        <Button
-          variant="ghost"
-          onClick={() => router.push("/dashboard/profile")}
-          className="gap-2 mb-4"
-        >
+        <Button variant="ghost" onClick={() => router.push("/dashboard/profile")} className="gap-2 mb-4">
           <ArrowLeft className="h-4 w-4" />
           Back to Profile
         </Button>
         <h1 className="text-3xl font-semibold text-foreground">Economic Details</h1>
         <p className="text-muted-foreground mt-1">
-          Step 6 of 7: Provide your financial and asset information
+          Step 6 of 7 — Financial and asset information
         </p>
       </div>
 
       {/* Stepper */}
       <Stepper steps={steps} currentStep={5} />
 
-      {/* Income Section */}
-      <Card className="shadow-sm">
+      {/* ── 1. Income ── */}
+      <Card className="shadow-sm border-l-4 border-l-primary">
         <CardHeader>
-          <CardTitle>Income Information</CardTitle>
-          <CardDescription>Annual income details</CardDescription>
+          <CardTitle>Annual Income</CardTitle>
+          <CardDescription>Select the applicable income range</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="selfIncome">
-                Self Income (Annual) <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={formData.selfIncome}
-                onValueChange={(value) => {
-                  setFormData({ ...formData, selfIncome: value });
-                  setErrors({ ...errors, selfIncome: "" });
-                }}
-              >
-                <SelectTrigger className={errors.selfIncome ? "border-destructive" : ""}>
-                  <SelectValue placeholder="Select income range" />
-                </SelectTrigger>
-                <SelectContent>
-                  {incomeSlabs.map((slab) => (
-                    <SelectItem key={slab} value={slab}>
-                      {slab}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.selfIncome && (
-                <p className="text-xs text-destructive">{errors.selfIncome}</p>
-              )}
-            </div>
+        <CardContent className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Self Income <span className="text-destructive">*</span></Label>
+            <Select value={selfIncome} onValueChange={(v) => { setSelfIncome(v); setErrors({ ...errors, selfIncome: "" }); }}>
+              <SelectTrigger className={errors.selfIncome ? "border-destructive" : ""}>
+                <SelectValue placeholder="Select income range" />
+              </SelectTrigger>
+              <SelectContent>
+                {incomeSlabs.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {errors.selfIncome && <p className="text-xs text-destructive">{errors.selfIncome}</p>}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="familyIncome">
-                Family Income (Annual) <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={formData.familyIncome}
-                onValueChange={(value) => {
-                  setFormData({ ...formData, familyIncome: value });
-                  setErrors({ ...errors, familyIncome: "" });
-                }}
-              >
-                <SelectTrigger className={errors.familyIncome ? "border-destructive" : ""}>
-                  <SelectValue placeholder="Select income range" />
-                </SelectTrigger>
-                <SelectContent>
-                  {incomeSlabs.map((slab) => (
-                    <SelectItem key={slab} value={slab}>
-                      {slab}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.familyIncome && (
-                <p className="text-xs text-destructive">{errors.familyIncome}</p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label>Family Income <span className="text-destructive">*</span></Label>
+            <Select value={familyIncome} onValueChange={(v) => { setFamilyIncome(v); setErrors({ ...errors, familyIncome: "" }); }}>
+              <SelectTrigger className={errors.familyIncome ? "border-destructive" : ""}>
+                <SelectValue placeholder="Select income range" />
+              </SelectTrigger>
+              <SelectContent>
+                {incomeSlabs.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {errors.familyIncome && <p className="text-xs text-destructive">{errors.familyIncome}</p>}
           </div>
         </CardContent>
       </Card>
 
-      {/* Assets Section */}
+      {/* ── 2. Assets ── */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Assets Owned</CardTitle>
-          <CardDescription>Select all assets that you or your family owns</CardDescription>
+          <CardTitle>Family Assets</CardTitle>
+          <CardDescription>Select all that apply to your family</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-3">
             {assets.map((asset) => (
               <div
                 key={asset}
-                className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-colors cursor-pointer ${
+                onClick={() => toggleAsset(asset)}
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                   selectedAssets.includes(asset)
                     ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
+                    : "border-border hover:border-primary/40"
                 }`}
-                onClick={() => toggleAsset(asset)}
               >
                 <Checkbox
-                  id={asset}
                   checked={selectedAssets.includes(asset)}
                   onCheckedChange={() => toggleAsset(asset)}
                 />
-                <Label htmlFor={asset} className="font-normal cursor-pointer flex-1">
-                  {asset}
-                </Label>
+                <Label className="font-normal cursor-pointer text-sm">{asset}</Label>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Insurance Section */}
+      {/* ── 3. Insurance — per family member ── */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Insurance Coverage</CardTitle>
           <CardDescription>
-            Select insurance types and coverage for family members
+            Select which insurance types each family member has
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {insuranceTypes.map((insuranceType) => (
-            <div key={insuranceType} className="p-4 rounded-lg border bg-muted/30">
-              <Label className="text-base mb-3 block">{insuranceType}</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {coverageOptions.map((coverage) => (
-                  <div key={coverage} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`${insuranceType}-${coverage}`}
-                      checked={insuranceCoverage[insuranceType].includes(coverage)}
-                      onCheckedChange={() =>
-                        toggleInsuranceCoverage(insuranceType, coverage)
-                      }
-                    />
-                    <Label
-                      htmlFor={`${insuranceType}-${coverage}`}
-                      className="font-normal cursor-pointer text-sm"
-                    >
-                      {coverage}
-                    </Label>
-                  </div>
-                ))}
+        <CardContent className="space-y-1">
+
+          {/* Table header */}
+          <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "1fr repeat(3, minmax(100px,1fr))" }}>
+            <div /> {/* empty left column */}
+            {insuranceTypes.map((t) => (
+              <p key={t} className="text-xs font-semibold text-center text-muted-foreground px-1">{t}</p>
+            ))}
+          </div>
+
+          {/* One row per member */}
+          {familyMembers.map((member, index) => (
+            <div
+              key={member.id}
+              className={`grid items-center gap-2 py-3 px-2 rounded-lg ${index % 2 === 0 ? "bg-muted/30" : ""}`}
+              style={{ gridTemplateColumns: "1fr repeat(3, minmax(100px,1fr))" }}
+            >
+              {/* Member name */}
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-primary">{index + 1}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{member.name}</p>
+                  <p className="text-xs text-muted-foreground">{member.relation}</p>
+                </div>
+              </div>
+
+              {/* Checkbox per insurance type */}
+              {insuranceTypes.map((type) => (
+                <div key={type} className="flex justify-center">
+                  <Checkbox
+                    checked={insurance[member.id][type]}
+                    onCheckedChange={() => toggleInsurance(member.id, type)}
+                    className="h-5 w-5"
+                  />
+                </div>
+              ))}
+            </div>
+          ))}
+
+        </CardContent>
+      </Card>
+
+      {/* ── 4. Documents — Yes / No ── */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Document Status</CardTitle>
+          <CardDescription>
+            Does your family have these documents? Select Yes or No for each.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {documentTypes.map((doc) => (
+            <div
+              key={doc}
+              className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20"
+            >
+              <p className="text-sm font-medium">{doc}</p>
+
+              <div className="flex gap-2">
+                {/* YES */}
+                <button
+                  type="button"
+                  onClick={() => setDocument(doc, true)}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium border-2 transition-all ${
+                    documents[doc] === true
+                      ? "bg-green-100 border-green-500 text-green-700"
+                      : "bg-white border-border text-muted-foreground hover:border-green-400"
+                  }`}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Yes
+                </button>
+
+                {/* NO */}
+                <button
+                  type="button"
+                  onClick={() => setDocument(doc, false)}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium border-2 transition-all ${
+                    documents[doc] === false
+                      ? "bg-red-50 border-red-400 text-red-600"
+                      : "bg-white border-border text-muted-foreground hover:border-red-300"
+                  }`}
+                >
+                  <XCircle className="h-4 w-4" />
+                  No
+                </button>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
 
-      {/* Documents Section */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>Document Uploads</CardTitle>
-          <CardDescription>
-            Upload copies of important documents (Optional but recommended)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-4">
-            {documentTypes.map((docType) => (
-              <div key={docType} className="space-y-2">
-                <Label htmlFor={docType}>{docType}</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id={docType}
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={(e) =>
-                      handleDocumentUpload(docType, e.target.files?.[0] || null)
-                    }
-                    className="flex-1"
-                  />
-                  <Button type="button" variant="outline" size="icon">
-                    <Upload className="h-4 w-4" />
-                  </Button>
-                </div>
-                {uploadedDocuments[docType] && (
-                  <p className="text-xs text-muted-foreground">
-                    ✓ {uploadedDocuments[docType]?.name}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground mt-3">
-            Supported formats: JPG, PNG, PDF (Max 5MB per file)
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Investments Section */}
+      {/* ── 5. Investments ── */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Investments</CardTitle>
-          <CardDescription>Select your investment types</CardDescription>
+          <CardDescription>Select all investment types that apply</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-2 gap-4">
-            {investments.map((investment) => (
+          <div className="grid md:grid-cols-2 gap-3">
+            {investments.map((inv) => (
               <div
-                key={investment}
-                className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-colors cursor-pointer ${
-                  selectedInvestments.includes(investment)
+                key={inv}
+                onClick={() => toggleInvestment(inv)}
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  selectedInvestments.includes(inv)
                     ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
+                    : "border-border hover:border-primary/40"
                 }`}
-                onClick={() => toggleInvestment(investment)}
               >
                 <Checkbox
-                  id={investment}
-                  checked={selectedInvestments.includes(investment)}
-                  onCheckedChange={() => toggleInvestment(investment)}
+                  checked={selectedInvestments.includes(inv)}
+                  onCheckedChange={() => toggleInvestment(inv)}
                 />
-                <Label htmlFor={investment} className="font-normal cursor-pointer flex-1">
-                  {investment}
-                </Label>
+                <Label className="font-normal cursor-pointer text-sm">{inv}</Label>
               </div>
             ))}
           </div>
@@ -376,7 +359,7 @@ export default function Page() {
 
       {/* Navigation */}
       <div className="flex justify-between items-center pt-4 border-t border-border">
-        <Button variant="outline" onClick={handleBack} className="gap-2">
+        <Button variant="outline" onClick={() => router.push("/dashboard/profile/education-profession")} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Previous Step
         </Button>
@@ -391,6 +374,7 @@ export default function Page() {
           </Button>
         </div>
       </div>
+
     </div>
   );
 }

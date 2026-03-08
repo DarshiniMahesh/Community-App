@@ -30,3 +30,6 @@ To learn more about Next.js, take a look at the following resources:
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
 
+What's added:
+FeatureDetailGPS Button"Detect GPS" button on both Current Address and Hometown cardsAuto-fillOn click → browser asks permission → fetches lat/lng → calls OpenStreetMap Nominatim API (free, no API key needed) → fills Area, City, State, Pincode, Street automaticallyCoordinates storedlat + lng saved in form state, shown as small badge below the buttonLoading stateSpinner + "Detecting..." while fetchingError handlingToast if permission denied or GPS fails, user can still fill manuallyOld addressesAdded all full fields (Flat, Building, Street, Area + City/State/Pincode)
+The Nominatim API is completely free and works without any API key — perfect for frontend-only stage. When you add a backend, you can switch to Google Maps API for better accuracy.
