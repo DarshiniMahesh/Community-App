@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { Stepper } from "../Stepper";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -14,7 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, ArrowRight, Save, User, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { ArrowLeft, ArrowRight, Save, Plus, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 // ── Steps ─────────────────────────────────────────────────────────
@@ -28,9 +36,9 @@ const steps = [
   { id: "7", name: "Review",    href: "/dashboard/profile/review-submit" },
 ];
 
-// ── Data ──────────────────────────────────────────────────────────
+// ── Data (matches Excel exactly) ──────────────────────────────────
 const incomeSlabs = [
-  "Below ₹1 Lakh",
+  "Less than ₹1 Lakh",
   "₹1 – 2 Lakh",
   "₹2 – 3 Lakh",
   "₹3 – 5 Lakh",
@@ -39,91 +47,117 @@ const incomeSlabs = [
   "₹25 Lakh+",
 ];
 
-const assets = [
+const familyFacilities = [
   "Stay in Rented House",
   "Own a House",
   "Own Agricultural Land",
   "Own a Two Wheeler",
-  "Own a Car (Four Wheeler)",
+  "Own a Car",
 ];
 
-const insuranceTypes = ["Health Insurance", "Life Insurance", "Term Insurance"];
+// Insurance + Documents both have per-member coverage (For self/wife/kids/parents/All)
+const insuranceTypes = [
+  "Have Health Insurance",
+  "Have Life Insurance",
+  "Have Term Insurance",
+];
 
 const documentTypes = [
-  "Aadhaar Card",
-  "PAN Card",
-  "Ration Card",
-  "All Records in Place (Land / Property / Pension / Govt)",
+  "Have Ration Card",
+  "Have AADHAR",
+  "Have PAN",
+  "Have All Records in Place (Land / Property / Pension / Govt Facility)",
 ];
 
-const investments = [
+const coverageOptions = ["Self", "Wife", "Kids", "Parents", "All"];
+
+const investmentOptions = [
   "Fixed Deposits",
   "Mutual Funds / SIP",
   "Trading in Shares / Demat Account",
-  "Other Investments",
-];
-
-// ── Mock family members — replace with real shared state later ────
-const familyMembers = [
-  { id: "self", name: "Self",    relation: "Self" },
-  { id: "m1",   name: "Spouse", relation: "Spouse" },
-  { id: "m2",   name: "Child 1",relation: "Son / Daughter" },
-  { id: "m3",   name: "Father", relation: "Father" },
-  { id: "m4",   name: "Mother", relation: "Mother" },
+  "Investment - Others",
 ];
 
 // ── Types ─────────────────────────────────────────────────────────
-// insurance: { memberId: { "Health Insurance": true/false, ... } }
-type InsuranceState = Record<string, Record<string, boolean>>;
-
-// documents: { "Aadhaar Card": true/false/null }
-type DocumentState = Record<string, boolean | null>;
-
-function initInsurance(): InsuranceState {
-  const state: InsuranceState = {};
-  familyMembers.forEach((m) => {
-    state[m.id] = {};
-    insuranceTypes.forEach((t) => { state[m.id][t] = false; });
-  });
-  return state;
+interface MemberCoverage {
+  id: string;
+  name: string;
+  relation: string;
+  // insurance: { "Have Health Insurance": ["Self","Kids",...], ... }
+  insurance: Record<string, string[]>;
+  // documents: { "Have Ration Card": ["Self","All",...], ... }
+  documents: Record<string, string[]>;
 }
 
-function initDocuments(): DocumentState {
-  const state: DocumentState = {};
-  documentTypes.forEach((d) => { state[d] = null; });
-  return state;
+function blankMember(id: string): MemberCoverage {
+  const ins: Record<string, string[]> = {};
+  insuranceTypes.forEach((t) => { ins[t] = []; });
+  const doc: Record<string, string[]> = {};
+  documentTypes.forEach((d) => { doc[d] = []; });
+  return { id, name: "", relation: "", insurance: ins, documents: doc };
 }
+
+const isInsuranceComplete = (m: MemberCoverage) =>
+  insuranceTypes.some((t) => m.insurance[t].length > 0);
+
+const isDocComplete = (m: MemberCoverage) =>
+  documentTypes.some((d) => m.documents[d].length > 0);
 
 // ── Page ──────────────────────────────────────────────────────────
 export default function Page() {
   const router = useRouter();
 
-  const [selfIncome,   setSelfIncome]   = useState("");
-  const [familyIncome, setFamilyIncome] = useState("");
-  const [selectedAssets,      setSelectedAssets]      = useState<string[]>([]);
-  const [selectedInvestments, setSelectedInvestments] = useState<string[]>([]);
-  const [insurance,  setInsurance]  = useState<InsuranceState>(initInsurance());
-  const [documents,  setDocuments]  = useState<DocumentState>(initDocuments());
+  // Family-level
+  const [selfIncome,         setSelfIncome]         = useState("");
+  const [familyIncome,       setFamilyIncome]       = useState("");
+  const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
+  const [selectedInvestments,setSelectedInvestments]= useState<string[]>([]);
+
+  // Per-member coverage
+  const [members, setMembers] = useState<MemberCoverage[]>([blankMember("1")]);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // ── Helpers ───────────────────────────────────────────────────
-  const toggleAsset = (a: string) =>
-    setSelectedAssets((prev) => prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]);
+  // ── Member helpers ────────────────────────────────────────────
+  const addMember = () =>
+    setMembers((prev) => [...prev, blankMember(Date.now().toString())]);
+
+  const removeMember = (id: string) => {
+    if (members.length === 1) return;
+    setMembers((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  const updateMember = (id: string, field: "name" | "relation", value: string) =>
+    setMembers((prev) => prev.map((m) => m.id === id ? { ...m, [field]: value } : m));
+
+  const toggleCoverage = (
+    memberId: string,
+    section: "insurance" | "documents",
+    key: string,
+    option: string
+  ) => {
+    setMembers((prev) =>
+      prev.map((m) => {
+        if (m.id !== memberId) return m;
+        const current = m[section][key];
+        const updated = current.includes(option)
+          ? current.filter((x) => x !== option)
+          : [...current, option];
+        return { ...m, [section]: { ...m[section], [key]: updated } };
+      })
+    );
+  };
+
+  // ── Facility / Investment toggles ──────────────────────────────
+  const toggleFacility = (f: string) =>
+    setSelectedFacilities((prev) =>
+      prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]
+    );
 
   const toggleInvestment = (i: string) =>
-    setSelectedInvestments((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]);
-
-  const toggleInsurance = (memberId: string, type: string) =>
-    setInsurance((prev) => ({
-      ...prev,
-      [memberId]: { ...prev[memberId], [type]: !prev[memberId][type] },
-    }));
-
-  const setDocument = (doc: string, value: boolean) =>
-    setDocuments((prev) => ({
-      ...prev,
-      [doc]: prev[doc] === value ? null : value, // clicking same option deselects
-    }));
+    setSelectedInvestments((prev) =>
+      prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]
+    );
 
   // ── Validation ────────────────────────────────────────────────
   const validate = () => {
@@ -135,13 +169,46 @@ export default function Page() {
   };
 
   const handleSaveDraft = () => toast.success("Draft saved successfully!");
-
   const handleNext = () => {
     if (validate()) {
       toast.success("Economic details saved!");
       router.push("/dashboard/profile/review-submit");
     }
   };
+
+  // ── Coverage grid (reused for insurance + documents) ──────────
+  const renderCoverageGrid = (
+    member: MemberCoverage,
+    section: "insurance" | "documents",
+    types: string[]
+  ) => (
+    <div className="space-y-3">
+      {types.map((type) => (
+        <div key={type} className="space-y-2">
+          <p className="text-sm font-medium text-foreground">{type}</p>
+          <div className="flex flex-wrap gap-2">
+            {coverageOptions.map((opt) => {
+              const checked = member[section][type]?.includes(opt);
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => toggleCoverage(member.id, section, type, opt)}
+                  className={`px-3 py-1.5 rounded-lg border-2 text-xs font-medium transition-all ${
+                    checked
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:border-primary/40 text-muted-foreground"
+                  }`}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   // ── Render ────────────────────────────────────────────────────
   return (
@@ -154,15 +221,12 @@ export default function Page() {
           Back to Profile
         </Button>
         <h1 className="text-3xl font-semibold text-foreground">Economic Details</h1>
-        <p className="text-muted-foreground mt-1">
-          Step 6 of 7 — Financial and asset information
-        </p>
+        <p className="text-muted-foreground mt-1">Step 6 of 7 — Financial and asset information</p>
       </div>
 
-      {/* Stepper */}
       <Stepper steps={steps} currentStep={5} />
 
-      {/* ── 1. Income ── */}
+      {/* ── 1. Annual Income ── */}
       <Card className="shadow-sm border-l-4 border-l-primary">
         <CardHeader>
           <CardTitle>Annual Income</CardTitle>
@@ -197,138 +261,154 @@ export default function Page() {
         </CardContent>
       </Card>
 
-      {/* ── 2. Assets ── */}
+      {/* ── 2. Family Facilities ── */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Family Assets</CardTitle>
+          <CardTitle>Family Facilities</CardTitle>
           <CardDescription>Select all that apply to your family</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-3">
-            {assets.map((asset) => (
+            {familyFacilities.map((f) => (
               <div
-                key={asset}
-                onClick={() => toggleAsset(asset)}
+                key={f}
+                onClick={() => toggleFacility(f)}
                 className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  selectedAssets.includes(asset)
+                  selectedFacilities.includes(f)
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/40"
                 }`}
               >
-                <Checkbox
-                  checked={selectedAssets.includes(asset)}
-                  onCheckedChange={() => toggleAsset(asset)}
-                />
-                <Label className="font-normal cursor-pointer text-sm">{asset}</Label>
+                <Checkbox checked={selectedFacilities.includes(f)} onCheckedChange={() => toggleFacility(f)} />
+                <Label className="font-normal cursor-pointer text-sm">{f}</Label>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* ── 3. Insurance — per family member ── */}
+      {/* ── 3. Insurance + Documents — per member ── */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Insurance Coverage</CardTitle>
-          <CardDescription>
-            Select which insurance types each family member has
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-1">
-
-          {/* Table header */}
-          <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "1fr repeat(3, minmax(100px,1fr))" }}>
-            <div /> {/* empty left column */}
-            {insuranceTypes.map((t) => (
-              <p key={t} className="text-xs font-semibold text-center text-muted-foreground px-1">{t}</p>
-            ))}
-          </div>
-
-          {/* One row per member */}
-          {familyMembers.map((member, index) => (
-            <div
-              key={member.id}
-              className={`grid items-center gap-2 py-3 px-2 rounded-lg ${index % 2 === 0 ? "bg-muted/30" : ""}`}
-              style={{ gridTemplateColumns: "1fr repeat(3, minmax(100px,1fr))" }}
-            >
-              {/* Member name */}
-              <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-primary">{index + 1}</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.relation}</p>
-                </div>
-              </div>
-
-              {/* Checkbox per insurance type */}
-              {insuranceTypes.map((type) => (
-                <div key={type} className="flex justify-center">
-                  <Checkbox
-                    checked={insurance[member.id][type]}
-                    onCheckedChange={() => toggleInsurance(member.id, type)}
-                    className="h-5 w-5"
-                  />
-                </div>
-              ))}
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Insurance & Documents — Per Member</CardTitle>
+              <CardDescription>
+                Add each family member and select their insurance coverage and document status
+              </CardDescription>
             </div>
-          ))}
-
-        </CardContent>
-      </Card>
-
-      {/* ── 4. Documents — Yes / No ── */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>Document Status</CardTitle>
-          <CardDescription>
-            Does your family have these documents? Select Yes or No for each.
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {documentTypes.map((doc) => (
-            <div
-              key={doc}
-              className="flex items-center justify-between p-3 rounded-xl border border-border bg-muted/20"
-            >
-              <p className="text-sm font-medium">{doc}</p>
 
-              <div className="flex gap-2">
-                {/* YES */}
-                <button
-                  type="button"
-                  onClick={() => setDocument(doc, true)}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium border-2 transition-all ${
-                    documents[doc] === true
-                      ? "bg-green-100 border-green-500 text-green-700"
-                      : "bg-white border-border text-muted-foreground hover:border-green-400"
-                  }`}
+          <Accordion type="multiple" defaultValue={[members[0]?.id]} className="space-y-3">
+            {members.map((member, index) => {
+              const complete = isInsuranceComplete(member) || isDocComplete(member);
+              return (
+                <AccordionItem
+                  key={member.id}
+                  value={member.id}
+                  className="border border-border rounded-xl overflow-hidden bg-white"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Yes
-                </button>
+                  <div className="flex items-center pr-2">
+                    <AccordionTrigger className="flex-1 px-5 py-4 hover:no-underline hover:bg-muted/20 [&[data-state=open]]:bg-muted/10">
+                      <div className="flex items-center gap-3 w-full">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-bold text-primary">{index + 1}</span>
+                        </div>
+                        <div className="flex-1 text-left">
+                          <p className="font-semibold text-foreground">
+                            {member.name || `Member ${index + 1}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{member.relation || "Relation not set"}</p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`mr-2 ${complete
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : "bg-orange-50 text-orange-600 border-orange-200"
+                          }`}
+                        >
+                          {complete ? "✓ Filled" : "Not filled"}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    {members.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeMember(member.id)}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors ml-1"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
 
-                {/* NO */}
-                <button
-                  type="button"
-                  onClick={() => setDocument(doc, false)}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium border-2 transition-all ${
-                    documents[doc] === false
-                      ? "bg-red-50 border-red-400 text-red-600"
-                      : "bg-white border-border text-muted-foreground hover:border-red-300"
-                  }`}
-                >
-                  <XCircle className="h-4 w-4" />
-                  No
-                </button>
-              </div>
-            </div>
-          ))}
+                  <AccordionContent className="px-5 pb-6 pt-4 border-t border-border space-y-6">
+
+                    {/* Name + Relation */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Member Name</Label>
+                        <Input
+                          placeholder="Full name"
+                          value={member.name}
+                          onChange={(e) => updateMember(member.id, "name", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Relation to You</Label>
+                        <Input
+                          placeholder="E.g. Son, Wife, Father"
+                          value={member.relation}
+                          onChange={(e) => updateMember(member.id, "relation", e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Insurance */}
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground border-b pb-1.5">
+                        Insurance Coverage
+                        <span className="ml-2 font-normal normal-case tracking-normal text-muted-foreground/70">
+                          (select who is covered)
+                        </span>
+                      </p>
+                      {renderCoverageGrid(member, "insurance", insuranceTypes)}
+                    </div>
+
+                    {/* Documents */}
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground border-b pb-1.5">
+                        Document Status
+                        <span className="ml-2 font-normal normal-case tracking-normal text-muted-foreground/70">
+                          (select who has this document)
+                        </span>
+                      </p>
+                      {renderCoverageGrid(member, "documents", documentTypes)}
+                    </div>
+
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+
+          {/* Add member button */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addMember}
+            className="w-full gap-2 border-dashed border-2 border-primary/40 text-primary hover:bg-primary/5 py-5 mt-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Another Member
+          </Button>
+
         </CardContent>
       </Card>
 
-      {/* ── 5. Investments ── */}
+      {/* ── 4. Investments ── */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Investments</CardTitle>
@@ -336,7 +416,7 @@ export default function Page() {
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-3">
-            {investments.map((inv) => (
+            {investmentOptions.map((inv) => (
               <div
                 key={inv}
                 onClick={() => toggleInvestment(inv)}
@@ -346,10 +426,7 @@ export default function Page() {
                     : "border-border hover:border-primary/40"
                 }`}
               >
-                <Checkbox
-                  checked={selectedInvestments.includes(inv)}
-                  onCheckedChange={() => toggleInvestment(inv)}
-                />
+                <Checkbox checked={selectedInvestments.includes(inv)} onCheckedChange={() => toggleInvestment(inv)} />
                 <Label className="font-normal cursor-pointer text-sm">{inv}</Label>
               </div>
             ))}

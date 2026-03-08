@@ -236,42 +236,45 @@ export default function Page() {
             value={member.id}
             className="border border-border rounded-xl overflow-hidden shadow-sm bg-white"
           >
-            {/* Header row */}
-            <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/20 [&[data-state=open]]:bg-muted/10">
-              <div className="flex items-center gap-3 w-full">
-                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-primary">{index + 1}</span>
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="font-semibold text-foreground">
-                    {member.name ? member.name : `Member ${index + 1}`}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {member.relation || "Relation not set"}
-                  </p>
-                </div>
-                <Badge
-                  variant="outline"
-                  className={`mr-2 ${
-                    isComplete(member)
-                      ? "bg-green-50 text-green-700 border-green-200"
-                      : "bg-orange-50 text-orange-600 border-orange-200"
-                  }`}
-                >
-                  {isComplete(member) ? "✓ Complete" : "Incomplete"}
-                </Badge>
-                {members.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); removeMember(member.id); }}
-                    className="mr-2 p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
-                    title="Remove member"
+            {/* Header row — remove button sits OUTSIDE AccordionTrigger to avoid nested <button> */}
+            <div className="flex items-center pr-2">
+              <AccordionTrigger className="flex-1 px-5 py-4 hover:no-underline hover:bg-muted/20 [&[data-state=open]]:bg-muted/10">
+                <div className="flex items-center gap-3 w-full">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-primary">{index + 1}</span>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold text-foreground">
+                      {member.name ? member.name : `Member ${index + 1}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {member.relation || "Relation not set"}
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`mr-2 ${
+                      isComplete(member)
+                        ? "bg-green-50 text-green-700 border-green-200"
+                        : "bg-orange-50 text-orange-600 border-orange-200"
+                    }`}
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </AccordionTrigger>
+                    {isComplete(member) ? "✓ Complete" : "Incomplete"}
+                  </Badge>
+                </div>
+              </AccordionTrigger>
+              {/* Remove button — outside trigger, no nested button issue */}
+              {members.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeMember(member.id)}
+                  className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors ml-1"
+                  title="Remove member"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
 
             {/* Body */}
             <AccordionContent className="px-5 pb-6 pt-4 border-t border-border space-y-6">
