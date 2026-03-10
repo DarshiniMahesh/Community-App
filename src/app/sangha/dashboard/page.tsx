@@ -11,6 +11,8 @@ interface DashboardStats {
   totalUsers: number;
 }
 
+type SanghaStatus = "profile_pending" | "pending_approval" | "approved" | "unknown";
+
 export default function SanghaDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     pendingApplications: 0,
@@ -18,6 +20,14 @@ export default function SanghaDashboardPage() {
     rejectedUsers: 0,
     totalUsers: 0,
   });
+  const [status, setStatus] = useState<SanghaStatus>("unknown");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("sanghaStatus") as SanghaStatus | null;
+      setStatus(stored || "unknown");
+    }
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -70,6 +80,49 @@ export default function SanghaDashboardPage() {
     },
   ];
 
+  const renderStatusCard = () => {
+    if (status === "profile_pending" || status === "unknown") {
+      return (
+        <Card className="border-l-4 border-l-blue-500 shadow-sm">
+          <CardHeader>
+            <CardTitle>Sangha Profile Incomplete</CardTitle>
+            <CardDescription>
+              Please complete your Sangha profile so it can be submitted for approval.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      );
+    }
+
+    if (status === "pending_approval") {
+      return (
+        <Card className="border-l-4 border-l-yellow-500 shadow-sm">
+          <CardHeader>
+            <CardTitle>Sangha Registration Pending</CardTitle>
+            <CardDescription>
+              Your Sangha details have been submitted and are awaiting admin approval.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      );
+    }
+
+    if (status === "approved") {
+      return (
+        <Card className="border-l-4 border-l-green-500 shadow-sm">
+          <CardHeader>
+            <CardTitle>Sangha Approved</CardTitle>
+            <CardDescription>
+              Your Sangha has been approved. You can now manage member applications.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
@@ -78,6 +131,8 @@ export default function SanghaDashboardPage() {
           Overview of applications managed by your Sangha
         </p>
       </div>
+
+      {renderStatusCard()}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
