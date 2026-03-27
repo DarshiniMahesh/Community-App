@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
+<<<<<<< HEAD
     "target": "ES2020",
+=======
+    "target": "ES2017",
+>>>>>>> 4d428040c7b75c27aedbb764d41a19f79a8f2bf8
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -11,19 +15,40 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+<<<<<<< HEAD
     "jsx": "preserve",
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
+=======
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+>>>>>>> 4d428040c7b75c27aedbb764d41a19f79a8f2bf8
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "include": [
     "next-env.d.ts",
+<<<<<<< HEAD
     "src/**/*",
     ".next/types/**/*.ts"
   ],
   "exclude": ["node_modules"],
   "ignoreDeprecations": "6.0"
 }
+=======
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+>>>>>>> 4d428040c7b75c27aedbb764d41a19f79a8f2bf8
